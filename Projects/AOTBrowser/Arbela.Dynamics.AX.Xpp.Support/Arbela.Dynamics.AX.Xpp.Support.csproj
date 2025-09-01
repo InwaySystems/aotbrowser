@@ -35,6 +35,14 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <ItemGroup Condition="Exists('..\packages')">
+    <Reference Include="..\packages\Microsoft.Dynamics.AX.Platform.CompilerPackage.*\AOSKernel.dll" />
+    <Reference Include="..\packages\Microsoft.Dynamics.AX.Platform.CompilerPackage.*\Microsoft.Dynamics.AX.Metadata.dll" />
+    <Reference Include="..\packages\Microsoft.Dynamics.AX.Platform.CompilerPackage.*\Microsoft.Dynamics.AX.Metadata.Core.dll" />
+    <Reference Include="..\packages\Microsoft.Dynamics.AX.Platform.CompilerPackage.*\Microsoft.Dynamics.AX.Metadata.Extensions.dll" />
+    <Reference Include="..\packages\Microsoft.Dynamics.AX.Platform.CompilerPackage.*\Microsoft.Dynamics.AX.Metadata.Storage.dll" />
+    <Reference Include="..\packages\Microsoft.Dynamics.AX.Platform.CompilerPackage.*\Microsoft.Dynamics.AX.Xpp.Support.dll" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="AOSKernel">
       <HintPath Condition="Exists('C:\AosService\PackagesLocalDirectory\Bin\AOSKernel.dll')">C:\AosService\PackagesLocalDirectory\Bin\AOSKernel.dll</HintPath>
