@@ -1,0 +1,8 @@
+{
+    "type": "FSCM",
+    "packageName": "aotbrowser",
+    "buildVersion": "10.0.44",
+    "ciBranches": "main,release",
+    "useLocalNuGetStorage": true,
+    "deploymentScheduler": false
+}
