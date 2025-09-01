@@ -25,6 +25,7 @@ bld/
 BuildModelResult.*
 CompileLabels.xml
 BuildProjectResult.*
+BPCheck.xml
 [Rr]eports/
 [Xx]pp[Ss]ource/
 
