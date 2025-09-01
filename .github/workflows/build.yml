@@ -78,11 +78,11 @@ jobs:
         uses: fscpscollaborative/fscps.gh/RestoreFSCNuget@v2.1
         with:
           version: ${{ matrix.version }}
-          packagesDirectory: '${{ github.workspace }}/Project/AOTBrowser/packages'
+          packagesDirectory: '${{ github.workspace }}/Projects/AOTBrowser/packages'
 
       - name: List FSC packages (debug)
         if: runner.debug == '1'
-        run: ls -R Project/AOTBrowser/packages
+        run: ls -R Projects/AOTBrowser/packages
 
       - name: Find and show packages.config (debug)
         if: runner.debug == '1'
@@ -101,7 +101,7 @@ jobs:
           }
 
       - name: Restore NuGet packages
-        run: nuget restore Projects/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/Arbela.Dynamics.AX.Xpp.Support.csproj -PackagesDirectory Project/AOTBrowser/packages
+        run: nuget restore Projects/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/Arbela.Dynamics.AX.Xpp.Support.csproj -PackagesDirectory Projects/AOTBrowser/packages
 
       - name: List packages (debug)
         if: runner.debug == '1'
