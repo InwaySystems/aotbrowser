@@ -132,7 +132,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Arbela.Dynamics.AX.Xpp.Support
-          path: Metadata/Arbela.Dynamics.AX.Xpp.Support/bin
+          path: Metadata/AOTBrowser/bin
 
       - name: Read settings
         uses: fscpscollaborative/fscps.gh/ReadSettings@v2.1
