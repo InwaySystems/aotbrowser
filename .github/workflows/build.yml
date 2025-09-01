@@ -101,20 +101,20 @@ jobs:
           }
 
       - name: Restore NuGet packages
-        run: nuget restore Project/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/Arbela.Dynamics.AX.Xpp.Support.csproj -PackagesDirectory Project/AOTBrowser/packages
+        run: nuget restore Projects/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/Arbela.Dynamics.AX.Xpp.Support.csproj -PackagesDirectory Project/AOTBrowser/packages
 
       - name: List packages (debug)
         if: runner.debug == '1'
-        run: ls -R Project/AOTBrowser/packages
+        run: ls -R Projects/AOTBrowser/packages
 
       - name: Build
-        run: msbuild Project/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/Arbela.Dynamics.AX.Xpp.Support.csproj /p:VersionSuffix=pr /p:Configuration=Release /p:Version=0.0.0.${{ github.event.pull_request.number }} /p:InformationalVersion=0.0.0.${{ github.event.pull_request.number }}-pr -fileLogger
+        run: msbuild Projects/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/Arbela.Dynamics.AX.Xpp.Support.csproj /p:VersionSuffix=pr /p:Configuration=Release /p:Version=0.0.0.${{ github.event.pull_request.number }} /p:InformationalVersion=0.0.0.${{ github.event.pull_request.number }}-pr -fileLogger
 
       - name: Upload Arbela.Dynamics.AX.Xpp.Support
         uses: actions/upload-artifact@v4
         with:
           name: Arbela.Dynamics.AX.Xpp.Support
-          path: Project/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/bin/Release
+          path: Projects/AOTBrowser/Arbela.Dynamics.AX.Xpp.Support/bin/Release
 
    Build:
     needs: [ Initialization, BuildDotNet ]
