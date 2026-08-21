@@ -13,7 +13,9 @@ using System.Reflection;
 using System.Linq.Enumerable;
 
 /// <summary>
-/// ACM AOT browser form
+/// Main AOT Browser form providing a tree-based metadata explorer for D365FO objects.
+/// Allows browsing tables, classes, forms, EDTs, enums, and other AOT elements with
+/// property inspection, code viewing, and extension visualization.
 /// </summary>
 [Form]
 public class ARBAOTBrowser extends FormRun
@@ -29,6 +31,11 @@ public class ARBAOTBrowser extends FormRun
     ARBAOTObjectType currentObjectType;
     TreeNodeName currentObjectName;
     anytype selectedObject;
+    int maxPropertyIndex;
+
+    // Tree search state (Docentric pattern - pre-built index lists)
+    List searchNextTreeItems;
+    List searchPrevTreeItems;
 
     #define.CurrentVersion(2)
     #localmacro.CurrentList
@@ -42,6 +49,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>lastValueUserId</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Returns the current user ID for SysLastValue state persistence.
+    /// </summary>
+    /// <returns>The current user ID.</returns>
     private UserId lastValueUserId()
     {
         return curUserId();
@@ -52,6 +63,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>lastValueType</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Returns the element type identifier for SysLastValue state persistence.
+    /// </summary>
+    /// <returns>The <c>UtilElementType::Form</c> element type.</returns>
     private UtilElementType lastValueType()
     {
         return UtilElementType::Form;
@@ -62,6 +77,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>lastValueElementName</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Returns the element name for SysLastValue state persistence.
+    /// </summary>
+    /// <returns>The name of this form.</returns>
     private IdentifierName lastValueElementName()
     {
         return this.name();
@@ -72,6 +91,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>lastValueDesignName</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Returns the design name for SysLastValue state persistence.
+    /// </summary>
+    /// <returns>An empty string, as this form does not use multiple design variants.</returns>
     private IdentifierName lastValueDesignName()
     {
         // Unique key: (user, company, type, elementName, designName)
@@ -84,6 +107,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>lastValueDataAreaId</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Returns the data area (company) ID for SysLastValue state persistence.
+    /// </summary>
+    /// <returns>The current company data area ID.</returns>
     DataAreaId lastValueDataAreaId()
     {
         return curext();
@@ -94,6 +121,9 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>initParmDefault</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Initializes default parameter values for SysLastValue when no saved state exists.
+    /// </summary>
     void initParmDefault()
     {
         // Don't need to initialize any of the controls.
@@ -104,6 +134,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>pack</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Packs the form state into a container for SysLastValue persistence.
+    /// </summary>
+    /// <returns>A container with the current version and persisted control values.</returns>
     public container pack()
     {
         this.getControlValuesForSysLastValues();
@@ -115,6 +149,11 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>unpack</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Unpacks form state from a container saved by SysLastValue, with version migration support.
+    /// </summary>
+    /// <param name="packedClass">The container with previously packed form state.</param>
+    /// <returns>true if the container was successfully unpacked; otherwise, false.</returns>
     public boolean unpack(container packedClass)
     {
         Integer version = conPeek(packedClass, 1);
@@ -122,6 +161,10 @@ public class ARBAOTBrowser extends FormRun
         {
             case #CurrentVersion:
                 [version, #CurrentList] = packedClass;
+                break;
+            case 1:
+                [version, extensionsInline] = packedClass;
+                showCode = true;
                 break;
             default:
                 return false;
@@ -134,6 +177,9 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>close</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Handles the form close event by saving the current state via SysLastValue before closing.
+    /// </summary>
     public void close()
     {
         xSysLastValue::saveLast(this);
@@ -145,6 +191,9 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>getControlValuesForSysLastValues</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Captures the current form control values into member variables for SysLastValue persistence.
+    /// </summary>
     void getControlValuesForSysLastValues()
     {
         extensionsInline = ExtensionViewToggle.toggleValue();
@@ -156,6 +205,9 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>setControlValuesFromSysLastValues</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Restores form control values from the SysLastValue member variables after state is unpacked.
+    /// </summary>
     void setControlValuesFromSysLastValues()
     {
         ExtensionViewToggle.toggleValue(extensionsInline);
@@ -167,6 +219,9 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>updateControlsFromTable</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Updates form controls based on the currently selected record in the AOT objects data source.
+    /// </summary>
     public void updateControlsFromTable()
     {
         this.updateControls(ARBAOTObjects.Type, ARBAOTObjects.Name);
@@ -175,8 +230,122 @@ public class ARBAOTBrowser extends FormRun
 ]]></Source>
 			</Method>
 			<Method>
+				<Name>buildSearchTreeItems</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Builds the search index lists by walking the tree in depth-first order.
+    /// searchNextTreeItems contains indices in ascending (DFS) order for Find Next.
+    /// searchPrevTreeItems contains indices in descending order for Find Previous.
+    /// Call this after the tree is rebuilt.
+    /// </summary>
+    private void buildSearchTreeItems()
+    {
+        searchNextTreeItems = new List(Types::Integer);
+        searchPrevTreeItems = new List(Types::Integer);
+
+        TreeItemIdx rootIdx = ObjectTree.getRoot();
+        if (rootIdx != 0)
+        {
+            this.buildSearchTreeItemsRecursive(rootIdx);
+        }
+    }
+]]></Source>
+			</Method>
+			<Method>
+				<Name>buildSearchTreeItemsRecursive</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Recursively walks the tree adding each node's index to the search lists.
+    /// </summary>
+    /// <param name="_idx">The tree item index to process.</param>
+    private void buildSearchTreeItemsRecursive(TreeItemIdx _idx)
+    {
+        FormTreeItem item = ObjectTree.getItem(_idx);
+        if (item)
+        {
+            searchNextTreeItems.addEnd(_idx);
+            searchPrevTreeItems.addStart(_idx);
+        }
+
+        TreeItemIdx childIdx = ObjectTree.getChild(_idx);
+        while (childIdx != 0)
+        {
+            this.buildSearchTreeItemsRecursive(childIdx);
+            childIdx = ObjectTree.getNextSibling(childIdx);
+        }
+    }
+]]></Source>
+			</Method>
+			<Method>
+				<Name>findTreeItem</Name>
+				<Source><![CDATA[
+    /// <summary>
+    /// Searches the tree for the next or previous item matching the search string.
+    /// Iterates through a pre-built ordered list of tree indices, skipping past
+    /// the currently selected node, and returns the first matching node.
+    /// Plain text does case-insensitive substring matching. Use * and ? for wildcards.
+    /// </summary>
+    /// <param name="_searchTreeItems">The ordered list of tree item indices to search through.</param>
+    /// <param name="_searchString">The search string (supports * and ? wildcards).</param>
+    /// <returns>The index of the matching tree item, or 0 if not found.</returns>
+    public TreeItemIdx findTreeItem(List _searchTreeItems, str _searchString)
+    {
+        TreeItemIdx foundItemIdx;
+        TreeItemIdx currentSelection = ObjectTree.getSelection();
+
+        boolean useWildcard = strContains(_searchString, '*') || strContains(_searchString, '?');
+        str searchLower = strLwr(_searchString);
+
+        ListEnumerator searchEnum = _searchTreeItems.getEnumerator();
+        boolean passedCurrent = (currentSelection == 0);
+
+        while (searchEnum.moveNext())
+        {
+            TreeItemIdx treeItemIdx = searchEnum.current();
+
+            if (!passedCurrent)
+            {
+                if (treeItemIdx == currentSelection)
+                {
+                    passedCurrent = true;
+                }
+                continue;
+            }
+
+            FormTreeItem item = ObjectTree.getItem(treeItemIdx);
+            if (item)
+            {
+                boolean isMatch;
+                if (useWildcard)
+                {
+                    isMatch = match(_searchString, item.text());
+                }
+                else
+                {
+                    isMatch = strContains(strLwr(item.text()), searchLower);
+                }
+
+                if (isMatch)
+                {
+                    foundItemIdx = treeItemIdx;
+                    break;
+                }
+            }
+        }
+
+        return foundItemIdx;
+    }
+]]></Source>
+			</Method>
+			<Method>
 				<Name>updateControls</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Refreshes the object tree, properties grid, and detail controls for the specified AOT object.
+    /// Handles special cases for resources, tables, views, menu items, forms, and data entities.
+    /// </summary>
+    /// <param name="_objectType">The AOT object type to display.</param>
+    /// <param name="_aotNodeName">The AOT node name of the object to display.</param>
     public void updateControls(ARBAOTObjectType _objectType, TreeNodeName _aotNodeName)
     {
         currentObjectType = _objectType;
@@ -204,18 +373,24 @@ public class ARBAOTBrowser extends FormRun
         }
 
         aotObjectTree = ARBAOTObjectTree::newFromAOTObject(ObjectTree, _objectType, ExtensionViewToggle.toggleValue());
-        if (element.args().parmObject() != null
+        if (element.args() && element.args().parmObject() != null
             && aotObjectTree is ARBAOTObjectTreeForm)
         {
             ARBAOTObjectTreeForm objectTreeForm = aotObjectTree as ARBAOTObjectTreeForm;
             FormControl selectedControl = element.args().parmObject() as FormControl;
-            objectTreeForm.parmSelectedControl(selectedControl.name());
+            if (selectedControl)
+            {
+                objectTreeForm.parmSelectedControl(selectedControl.name());
+            }
         }
-        else if (element.args().parmObject() != null
+        else if (element.args() && element.args().parmObject() != null
                 && element.args().parmObject() is FormStringControl)
         {
             FormStringControl stringControl = element.args().parmObject() as FormStringControl;
-            aotObjectTree.parmSelectedTreePath('Fields/' + stringControl.valueStr());
+            if (stringControl)
+            {
+                aotObjectTree.parmSelectedTreePath('Fields/' + stringControl.valueStr());
+            }
         }
         else if (entityFieldName != ''
             && aotObjectTree is ARBAOTObjectTreeDataEntity)
@@ -228,9 +403,11 @@ public class ARBAOTBrowser extends FormRun
             aotObjectTree.parmSelectedTreePath(selectedTreePath);
         }
         aotObjectTree.update(_aotNodeName);
+        this.buildSearchTreeItems();
         DetailsTab.caption(_aotNodeName + ' - ' + enum2Str(_objectType));
         ARBOpenTableBrowser.enabled(tableBrowserEnabled);
         ARBMenuItemReferences.enabled(menuItemRefEnabled);
+        CopyLinkButton.enabled(currentObjectName != '');
     }
 
 ]]></Source>
@@ -238,6 +415,10 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>clearPropertiesMatrix</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Clears the dynamic properties matrix grid and optionally recreates it for a new object.
+    /// </summary>
+    /// <param name="_recreate">If true, recreates the grid control for displaying collection-based properties.</param>
     public void clearPropertiesMatrix(boolean _recreate = false)
     {
 
@@ -267,6 +448,7 @@ public class ARBAOTBrowser extends FormRun
         PropertiesGrid.widthMode(FormWidth::ColumnWidth);
         PropertiesGrid.heightMode(FormHeight::ColumnHeight);
         matrixControlMap = new Map(Types::String, Types::Integer);
+        maxPropertyIndex = 0;
     }
 
 ]]></Source>
@@ -274,6 +456,11 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>updatePropertiesGroup</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Populates the properties grid or matrix with the metadata properties of the selected AOT object.
+    /// Handles single objects, collections, extensions, and extension modifications.
+    /// </summary>
+    /// <param name="_object">The metadata object (or collection/extension wrapper) whose properties to display.</param>
     public void updatePropertiesGroup(anytype _object)
     {
         selectedObject = _object;
@@ -347,8 +534,9 @@ public class ARBAOTBrowser extends FormRun
             for (int i = 0; i < props.Length; i++)
             {
                 PropertyInfo prop = props.GetValue(i);
-                if (((prop.GetValue(objectLocal) is System.String) ||
-                            (!(prop.GetValue(objectLocal) is System.Collections.IEnumerable)
+                System.Object propValue = prop.GetValue(objectLocal);
+                if (((propValue is System.String) ||
+                            (!(propValue is System.Collections.IEnumerable)
                                 && prop.PropertyType.Name != ARBAOTBrowserConstants::AxPropertyCollection
                                 && prop.PropertyType.Name != ARBAOTBrowserConstants::AxFormPropertyCollection))
                             && prop.Name != ARBAOTBrowserConstants::CompilerMetadata
@@ -438,24 +626,24 @@ public class ARBAOTBrowser extends FormRun
                     while (modsEnum.MoveNext())
                     {
                         AxExtensionModification modification = modsEnum.currentValue();
+                        ttsbegin;
                         ARBAOTObjectPropertiesMatrix::find(ARBAOTObjectPropertiesMatrix, modsEnum.currentKey(), true);
 
                         var propModsEnum = modification.PropertyModifications.GetEnumerator();
                         while (propModsEnum.MoveNext())
                         {
                             AxPropertyModification propMod = propModsEnum.Current;
-                            ttsbegin;
                             int arrayNum = propMap.lookup(propMod.Name);
                             ARBAOTObjectPropertiesMatrix.Property[arrayNum] = propMod.Value;
                             ARBAOTObjectPropertiesMatrix.PropertyModified[arrayNum] = NoYes::Yes;
-                            
-                            ttscommit;
                         }
                         ARBAOTObjectPropertiesMatrix.update();
+                        ttscommit;
                     }
 
                 }
 
+                maxPropertyIndex = nextArrayNum - 1;
                 propertiesMatrixGrid.visible(true);
             }
             else
@@ -501,7 +689,7 @@ public class ARBAOTBrowser extends FormRun
                     ARBAOTObjectProperties.insert();
                     ARBAOTObjectProperties.clear();
                     ARBAOTObjectProperties.Name = '_Type';
-                    ARBAOTObjectProperties.Value = this.getFieldType(tableField);;
+                    ARBAOTObjectProperties.Value = this.getFieldType(tableField);
                     ARBAOTObjectProperties.insert();
                 }
                 else if (object is AxEdt)
@@ -509,7 +697,7 @@ public class ARBAOTBrowser extends FormRun
                     AxEdt edt = object as AxEdt;
                     ARBAOTObjectProperties.clear();
                     ARBAOTObjectProperties.Name = '_Type';
-                    ARBAOTObjectProperties.Value = this.getEdtType(edt);;
+                    ARBAOTObjectProperties.Value = this.getEdtType(edt);
                     ARBAOTObjectProperties.insert();
                 }
                 else if (object is AxTable)
@@ -523,7 +711,14 @@ public class ARBAOTBrowser extends FormRun
 
                 if (showCode && Arbela.Dynamics.Ax.Xpp.MetadataSupport::CanGetSourceText(object))
                 {
-                    CodeViewer.parmHtml(Arbela.Dynamics.AX.Xpp.Support.HtmlFormatHelper::Format(Arbela.Dynamics.Ax.Xpp.MetadataSupport::GetXppSourceText(object)));
+                    try
+                    {
+                        CodeViewer.parmHtml(Arbela.Dynamics.AX.Xpp.Support.HtmlFormatHelper::Format(Arbela.Dynamics.Ax.Xpp.MetadataSupport::GetXppSourceText(object)));
+                    }
+                    catch (Exception::CLRError)
+                    {
+                        CodeViewer.parmHtml(Arbela.Dynamics.Ax.Xpp.MetadataSupport::GetXppSourceText(object));
+                    }
                     CodeViewerGroup.visible(true);
                 }
 
@@ -533,8 +728,9 @@ public class ARBAOTBrowser extends FormRun
                 for (int i = 0; i < props.Length; i++)
                 {
                     PropertyInfo prop = props.GetValue(i);
-                    if (((prop.GetValue(object) is System.String) ||
-                        (!(prop.GetValue(object) is System.Collections.IEnumerable)
+                    System.Object propValue = prop.GetValue(object);
+                    if (((propValue is System.String) ||
+                        (!(propValue is System.Collections.IEnumerable)
                             && prop.PropertyType.Name != ARBAOTBrowserConstants::AxPropertyCollection
                             && prop.PropertyType.Name != ARBAOTBrowserConstants::AxFormPropertyCollection))
                         && prop.Name != ARBAOTBrowserConstants::CompilerMetadata
@@ -543,7 +739,14 @@ public class ARBAOTBrowser extends FormRun
                     {
                         if (showCode && prop.Name == ARBAOTBrowserConstants::Source)
                         {
-                            CodeViewer.parmHtml(Arbela.Dynamics.AX.Xpp.Support.HtmlFormatHelper::Format(this.getPropertyValue(prop, object)));
+                            try
+                            {
+                                CodeViewer.parmHtml(Arbela.Dynamics.AX.Xpp.Support.HtmlFormatHelper::Format(this.getPropertyValue(prop, object)));
+                            }
+                            catch (Exception::CLRError)
+                            {
+                                CodeViewer.parmHtml(this.getPropertyValue(prop, object));
+                            }
                             CodeViewerGroup.visible(true);
                         }
                         else
@@ -567,6 +770,7 @@ public class ARBAOTBrowser extends FormRun
                 if (modifications != null)
                 {
                     ListEnumerator modsEnum = modifications.getEnumerator();
+                    ttsbegin;
                     while (modsEnum.MoveNext())
                     {
                         AxExtensionModification modification = modsEnum.current();
@@ -575,7 +779,6 @@ public class ARBAOTBrowser extends FormRun
                         while (propModsEnum.MoveNext())
                         {
                             AxPropertyModification propMod = propModsEnum.Current;
-                            ttsbegin;
                             ARBAOTObjectProperties::find(ARBAOTObjectProperties, propMod.Name, true);
                             if (_object is AxEnumValue && propMod.Name == 'Value')
                             {
@@ -603,9 +806,9 @@ public class ARBAOTBrowser extends FormRun
                                 ARBAOTObjectProperties.Name = propMod.Name;
                                 ARBAOTObjectProperties.insert();
                             }
-                            ttscommit;
                         }
                     }
+                    ttscommit;
                 }
 
                 PropertiesGrid.visible(true);
@@ -625,6 +828,11 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>getFieldType</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the primitive type name string for a table field based on its concrete metadata type.
+    /// </summary>
+    /// <param name="_axTableField">The table field metadata object.</param>
+    /// <returns>The type name string (e.g., "Int", "String", "Enum", "UtcDateTime").</returns>
     protected str getFieldType(AxTableField _axTableField)
     {
         str ret;
@@ -670,6 +878,11 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>getEdtType</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Resolves the primitive type name string for an EDT based on its concrete metadata type.
+    /// </summary>
+    /// <param name="_axEdt">The EDT metadata object.</param>
+    /// <returns>The type name string (e.g., "Int", "String", "Enum", "UtcDateTime").</returns>
     protected str getEdtType(AxEdt _axEdt)
     {
         str ret;
@@ -715,6 +928,13 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>getPropertyValue</Name>
 				<Source><![CDATA[
+    /// <summary>
+    /// Gets a property value from a metadata object using reflection, with special handling
+    /// for return types, enum values, string sizes, labels, descriptions, and help text.
+    /// </summary>
+    /// <param name="_property">The reflection <c>PropertyInfo</c> for the property to read.</param>
+    /// <param name="_object">The metadata object to read the property from.</param>
+    /// <returns>The property value as a string.</returns>
     protected str getPropertyValue(PropertyInfo _property, anytype _object)
     {
         str value;
@@ -735,7 +955,7 @@ public class ARBAOTBrowser extends FormRun
             AxEnumValue enumValue = _object as AxEnumValue;
             value = int2Str(symbol2Enum(enumName2Id(enum.Name), enumValue.Name));
         }
-        else if (_object is AxTableFieldString && _property.Name == "StringSize")
+        else if (_object is AxTableFieldString && _property.Name == ARBAOTBrowserConstants::StringSize)
         {
             AxTableFieldString fieldString = _object;
             AxEdt extendsEdt = Xpp.MetadataSupport::GetEdt(fieldString.ExtendedDataType);
@@ -768,8 +988,22 @@ public class ARBAOTBrowser extends FormRun
 			<Method>
 				<Name>getLabelValue</Name>
 				<Source><![CDATA[
-    protected str getLabelValue(PropertyInfo _property, anytype _object)
+    /// <summary>
+    /// Resolves a label property value by traversing the EDT, enum, and data source hierarchy
+    /// to find the inherited label text when the immediate object has no label defined.
+    /// </summary>
+    /// <param name="_property">The reflection <c>PropertyInfo</c> for the label property.</param>
+    /// <param name="_object">The metadata object to resolve the label for.</param>
+    /// <param name="_depth">The current recursion depth to prevent infinite loops.</param>
+    /// <returns>The resolved label text, or an empty string if no label is found.</returns>
+    protected str getLabelValue(PropertyInfo _property, anytype _object, int _depth = 0)
     {
+        const int maxDepth = 10;
+        if (_depth >= maxDepth)
+        {
+            return '';
+        }
+
         str value = SysLabel::labelId2String(_property.GetValue(_object).ToString());
 
         if (value == '')
@@ -780,7 +1014,7 @@ public class ARBAOTBrowser extends FormRun
                 AxEdt extendsEdt = Xpp.MetadataSupport::GetEdt(edt.Extends);
                 if (extendsEdt != null)
                 {
-                    value = this.getLabelValue(extendsEdt.GetType().GetProperty(_property.Name), extendsEdt);
+                    value = this.getLabelValue(extendsEdt.GetType().GetProperty(_property.Name), extendsEdt, _depth + 1);
                 }
             }
             else
@@ -795,7 +1029,7 @@ public class ARBAOTBrowser extends FormRun
                         AxEdt edt = Xpp.MetadataSupport::GetEdt(edtName);
                         if (edt != null)
                         {
-                            value = this.getLabelValue(edt.GetType().GetProperty(_property.Name), edt);
+                            value = this.getLabelValue(edt.GetType().GetProperty(_property.Name), edt, _depth + 1);
                         }
                     }
                 }
@@ -810,7 +1044,7 @@ public class ARBAOTBrowser extends FormRun
                             AxEnum enum = Xpp.MetadataSupport::GetEnum(enumName);
                             if (enum != null)
                             {
-                                value = this.getLabelValue(enum.GetType().GetProperty(_property.Name), enum);
+                                value = this.getLabelValue(enum.GetType().GetProperty(_property.Name), enum, _depth + 1);
                             }
                         }
                     }
@@ -836,14 +1070,14 @@ public class ARBAOTBrowser extends FormRun
                                         AxTableField tableField = Xpp.MetadataSupport::GetTableField(tableName, dataFieldName);
                                         if (tableField != null)
                                         {
-                                            value = this.getLabelValue(tableField.GetType().GetProperty(_property.Name), tableField);
+                                            value = this.getLabelValue(tableField.GetType().GetProperty(_property.Name), tableField, _depth + 1);
                                         }
                                         else
                                         {
                                             AxViewField viewField = Xpp.MetadataSupport::GetViewField(tableName, dataFieldName);
                                             if (viewField != null)
                                             {
-                                                value = this.getLabelValue(viewField.GetType().GetProperty(_property.Name), viewField);
+                                                value = this.getLabelValue(viewField.GetType().GetProperty(_property.Name), viewField, _depth + 1);
                                             }
                                         }
                                     }
@@ -864,7 +1098,7 @@ public class ARBAOTBrowser extends FormRun
 				<Name>init</Name>
 				<Source><![CDATA[
     /// <summary>
-    ///
+    /// Initializes the form, restoring last-used settings, configuring the AOT object tree provider, and handling caller context navigation.
     /// </summary>
     public void init()
     {
@@ -948,6 +1182,30 @@ public class ARBAOTBrowser extends FormRun
             }
         }
 
+        // Deep linking: parse URL query-string parameters when no caller context was set
+        if (args.parmEnumType() != enumNum(ARBAOTObjectType) || args.parm() == null || args.parm() == '')
+        {
+            str objectTypeName = getClientURLQueryValue('ObjectType');
+            str objectName     = getClientURLQueryValue('ObjectName');
+
+            if (objectTypeName != '' && objectName != '')
+            {
+                ARBAOTObjectType urlObjectType = ARBAOTBrowserUrlHelper::parseObjectType(objectTypeName);
+                if (urlObjectType != ARBAOTObjectType::None)
+                {
+                    args.parmEnumType(enumNum(ARBAOTObjectType));
+                    args.parmEnum(urlObjectType);
+                    args.parm(objectName);
+
+                    str treePath = getClientURLQueryValue('TreePath');
+                    if (treePath != '')
+                    {
+                        selectedTreePath = treePath;
+                    }
+                }
+            }
+        }
+
         if (args.parmEnumType() == enumNum(ARBAOTObjectType) && args.parm() != null)
         {
             NavigationGroup.visible(false);
@@ -967,9 +1225,9 @@ public class ARBAOTBrowser extends FormRun
 						<Name>active</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Handles the active record change event for the AOT objects data source.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The result from the super() call.</returns>
         public int active()
         {
             int ret;
@@ -993,10 +1251,10 @@ public class ARBAOTBrowser extends FormRun
 						<Name>displayOption</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Sets display options for property rows, bolding modified properties.
         /// </summary>
-        /// <param name = "_record"></param>
-        /// <param name = "_options"></param>
+        /// <param name = "_record">The current record being displayed.</param>
+        /// <param name = "_options">The row display options to modify.</param>
         public void displayOption(Common _record, FormRowDisplayOption _options)
         {
             ARBAOTObjectProperties property = _record;
@@ -1020,10 +1278,10 @@ public class ARBAOTBrowser extends FormRun
 						<Name>displayOption</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Sets display options for matrix property rows, bolding modified and affected cells.
         /// </summary>
-        /// <param name = "_record"></param>
-        /// <param name = "_options"></param>
+        /// <param name = "_record">The current record being displayed.</param>
+        /// <param name = "_options">The row display options to modify.</param>
         public void displayOption(Common _record, FormRowDisplayOption _options)
         {
             ARBAOTObjectPropertiesMatrix property = _record;
@@ -1034,7 +1292,7 @@ public class ARBAOTBrowser extends FormRun
             else
             {
                 boolean needBold = false;
-                for (int i = 1; i <= 100; i++)
+                for (int i = 1; i <= maxPropertyIndex; i++)
                 {
                     if (property.PropertyModified[i])
                     {
@@ -1067,7 +1325,7 @@ public class ARBAOTBrowser extends FormRun
 						<Name>clicked</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Opens the SysTableBrowser for the selected table or the table passed via form arguments.
         /// </summary>
         public void clicked()
         {
@@ -1103,7 +1361,7 @@ public class ARBAOTBrowser extends FormRun
 						<Name>clicked</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Opens the menu item references form, passing the current object name as a parameter.
         /// </summary>
         public void clicked()
         {
@@ -1123,7 +1381,7 @@ public class ARBAOTBrowser extends FormRun
 						<Name>clicked</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Toggles the extension view and refreshes the displayed AOT object controls.
         /// </summary>
         public void clicked()
         {
@@ -1152,7 +1410,7 @@ public class ARBAOTBrowser extends FormRun
 						<Name>clicked</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Toggles the code visibility setting and refreshes the AOT object tree and controls.
         /// </summary>
         public void clicked()
         {
@@ -1177,6 +1435,30 @@ public class ARBAOTBrowser extends FormRun
 				</Methods>
 			</Control>
 			<Control>
+				<Name>CopyLinkButton</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        /// <summary>
+        /// Copies a deep link URL for the current AOT object to the browser clipboard.
+        /// </summary>
+        public void clicked()
+        {
+            super();
+
+            str treePath = ARBAOTBrowserUrlHelper::getSelectedTreePath(ObjectTree);
+            str url = ARBAOTBrowserUrlHelper::buildUrl(currentObjectType, currentObjectName, treePath);
+            ARBClipboardHelper::copyToClipboard(url);
+            info("@AOTBrowser:LinkCopied");
+        }
+
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
 				<Name>AOTObjectTypeFilter</Name>
 				<Type>ComboBox</Type>
 				<Methods>
@@ -1184,9 +1466,9 @@ public class ARBAOTBrowser extends FormRun
 						<Name>modified</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Handles the modified event for the AOT object type filter, updating the query range and refreshing results.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>The result from the super() call.</returns>
         public boolean modified()
         {
             boolean ret;
@@ -1211,6 +1493,94 @@ public class ARBAOTBrowser extends FormRun
 				</Methods>
 			</Control>
 			<Control>
+				<Name>TreeSearchString</Name>
+				<Type>String</Type>
+				<Methods>
+					<Method>
+						<Name>modified</Name>
+						<Source><![CDATA[
+        /// <summary>
+        /// Triggers Find Next whenever the search text is changed.
+        /// </summary>
+        /// <returns>The result from the super() call.</returns>
+        public boolean modified()
+        {
+            boolean ret = super();
+            if (searchNextTreeItems != null && TreeSearchString.text() != '')
+            {
+                TreeItemIdx foundIdx = element.findTreeItem(
+                    searchNextTreeItems,
+                    TreeSearchString.text());
+                if (foundIdx)
+                {
+                    ObjectTree.select(foundIdx);
+                }
+            }
+            return ret;
+        }
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>TreeSearchPrevInline</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        /// <summary>
+        /// Searches the previous tree item node containing the search text.
+        /// </summary>
+        public void clicked()
+        {
+            super();
+            if (searchPrevTreeItems == null || TreeSearchString.text() == '')
+            {
+                return;
+            }
+            TreeItemIdx foundIdx = element.findTreeItem(
+                searchPrevTreeItems,
+                TreeSearchString.text());
+            if (foundIdx)
+            {
+                ObjectTree.select(foundIdx);
+            }
+        }
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
+				<Name>TreeSearchNextInline</Name>
+				<Type>Button</Type>
+				<Methods>
+					<Method>
+						<Name>clicked</Name>
+						<Source><![CDATA[
+        /// <summary>
+        /// Searches the next tree item node containing the search text.
+        /// </summary>
+        public void clicked()
+        {
+            super();
+            if (searchNextTreeItems == null || TreeSearchString.text() == '')
+            {
+                return;
+            }
+            TreeItemIdx foundIdx = element.findTreeItem(
+                searchNextTreeItems,
+                TreeSearchString.text());
+            if (foundIdx)
+            {
+                ObjectTree.select(foundIdx);
+            }
+        }
+]]></Source>
+					</Method>
+				</Methods>
+			</Control>
+			<Control>
 				<Name>ObjectTree</Name>
 				<Type>Tree</Type>
 				<Methods>
@@ -1218,11 +1588,11 @@ public class ARBAOTBrowser extends FormRun
 						<Name>selectionChanged</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Handles tree node selection changes, updating the properties group for the newly selected item.
         /// </summary>
-        /// <param name = "_OldItem"></param>
-        /// <param name = "_NewItem"></param>
-        /// <param name = "_how"></param>
+        /// <param name = "_OldItem">The previously selected tree item.</param>
+        /// <param name = "_NewItem">The newly selected tree item.</param>
+        /// <param name = "_how">The method by which the selection was changed.</param>
         public void selectionChanged(FormTreeItem _OldItem, FormTreeItem _NewItem, FormTreeSelect _how)
         {
             super(_OldItem, _NewItem, _how);
@@ -1242,7 +1612,7 @@ public class ARBAOTBrowser extends FormRun
 						<Name>jumpRef</Name>
 						<Source><![CDATA[
         /// <summary>
-        ///
+        /// Navigates to the related AOT object based on the current property value, opening a new AOT Browser instance.
         /// </summary>
         public void jumpRef()
         {
@@ -1820,6 +2190,17 @@ public class ARBAOTBrowser extends FormRun
 								<Text>@AOTBrowser:ViewCode</Text>
 								<ToggleButton>Check</ToggleButton>
 							</AxFormControl>
+							<AxFormControl xmlns=""
+								i:type="AxFormButtonControl">
+								<Name>CopyLinkButton</Name>
+								<AutoDeclaration>Yes</AutoDeclaration>
+								<Enabled>No</Enabled>
+								<HelpText>@AOTBrowser:CopyLinkHelp</HelpText>
+								<Type>Button</Type>
+								<FormControlExtension
+									i:nil="true" />
+								<Text>@AOTBrowser:CopyLink</Text>
+							</AxFormControl>
 						</Controls>
 						<Caption>General</Caption>
 					</AxFormControl>
@@ -1960,8 +2341,7 @@ public class ARBAOTBrowser extends FormRun
 						i:type="AxFormTabPageControl">
 						<Name>DetailsTab</Name>
 						<AutoDeclaration>Yes</AutoDeclaration>
-						<Pattern>NestedSimpleListDetails</Pattern>
-						<PatternVersion>UX7 1.1</PatternVersion>
+						<Pattern>Custom</Pattern>
 						<Type>TabPage</Type>
 						<FormControlExtension
 							i:nil="true" />
@@ -1984,6 +2364,58 @@ public class ARBAOTBrowser extends FormRun
 										<FormControlExtension
 											i:nil="true" />
 										<Controls>
+											<AxFormControl xmlns=""
+												i:type="AxFormGroupControl">
+												<Name>TreeSearchFilterGroup</Name>
+												<AutoDeclaration>Yes</AutoDeclaration>
+												<Type>Group</Type>
+												<FormControlExtension
+													i:nil="true" />
+												<Controls>
+													<AxFormControl xmlns=""
+														i:type="AxFormStringControl">
+														<Name>TreeSearchString</Name>
+														<AutoDeclaration>Yes</AutoDeclaration>
+														<Type>String</Type>
+														<FormControlExtension
+															i:nil="true" />
+														<Label>@AOTBrowser:TreeSearchPlaceholder</Label>
+														<LabelPosition>Above</LabelPosition>
+													</AxFormControl>
+													<AxFormControl xmlns=""
+														i:type="AxFormButtonGroupControl">
+														<Name>TreeSearchFindButtonGroup</Name>
+														<Type>ButtonGroup</Type>
+														<FormControlExtension
+															i:nil="true" />
+														<Controls>
+															<AxFormControl xmlns=""
+																i:type="AxFormButtonControl">
+																<Name>TreeSearchPrevInline</Name>
+																<Type>Button</Type>
+																<FormControlExtension
+																	i:nil="true" />
+																<ButtonDisplay>ImageOnly</ButtonDisplay>
+																<NormalImage>ChevronUp</NormalImage>
+																<Text>@AOTBrowser:TreeSearchPrev</Text>
+															</AxFormControl>
+															<AxFormControl xmlns=""
+																i:type="AxFormButtonControl">
+																<Name>TreeSearchNextInline</Name>
+																<Type>Button</Type>
+																<FormControlExtension
+																	i:nil="true" />
+																<ButtonDisplay>ImageOnly</ButtonDisplay>
+																<NormalImage>ChevronDown</NormalImage>
+																<Text>@AOTBrowser:TreeSearchNext</Text>
+															</AxFormControl>
+														</Controls>
+														<Columns>2</Columns>
+													</AxFormControl>
+												</Controls>
+												<ArrangeMethod>HorizontalLeft</ArrangeMethod>
+												<ViewEditMode>Edit</ViewEditMode>
+											</AxFormControl>
 											<AxFormControl xmlns=""
 												i:type="AxFormTreeControl">
 												<Name>ObjectTree</Name>
@@ -2022,7 +2454,6 @@ public class ARBAOTBrowser extends FormRun
 												<Name>DetailsDetailsPropertiesGroup</Name>
 												<AllowEdit>No</AllowEdit>
 												<AutoDeclaration>Yes</AutoDeclaration>
-												<Pattern>Custom</Pattern>
 												<Type>Group</Type>
 												<WidthMode>SizeToAvailable</WidthMode>
 												<FormControlExtension

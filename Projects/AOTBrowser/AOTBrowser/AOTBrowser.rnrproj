@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -34,6 +34,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="Action Menu Items\" />
+    <Folder Include="AxClass\" />
+    <Folder Include="AxForm\" />
+    <Folder Include="AxResource\" />
     <Folder Include="Base Enums\" />
     <Folder Include="Classes\" />
     <Folder Include="Display Menu Items\" />
@@ -50,6 +53,25 @@
     <Folder Include="Security Roles\" />
     <Folder Include="Tables\" />
     <Folder Include="Tiles\" />
+    <Folder Include="Data Entities\" />
+    <Content Include="AxClass\ARBClipboardHelperBuild">
+      <Name>ARBClipboardHelperBuild</Name>
+    </Content>
+    <Content Include="AxClass\ARBClipboardHelperControl">
+      <Name>ARBClipboardHelperControl</Name>
+    </Content>
+    <Content Include="AxResource\ARBClipboardHelperHTM">
+      <Name>ARBClipboardHelperHTM</Name>
+    </Content>
+    <Content Include="AxResource\ARBClipboardHelperJS">
+      <Name>ARBClipboardHelperJS</Name>
+    </Content>
+    <Content Include="AxClass\ARBClipboardHelper">
+      <Name>ARBClipboardHelper</Name>
+    </Content>
+    <Content Include="AxForm\ARBClipboardHelper">
+      <Name>ARBClipboardHelper</Name>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Content Include="AOTBrowser.en-US.label.txt">
@@ -66,6 +88,11 @@
       <SubType>Content</SubType>
       <Name>ARBAOTBrowserHelper</Name>
       <Link>Classes\ARBAOTBrowserHelper</Link>
+    </Content>
+    <Content Include="AxClass\ARBAOTBrowserUrlHelper">
+      <SubType>Content</SubType>
+      <Name>ARBAOTBrowserUrlHelper</Name>
+      <Link>Classes\ARBAOTBrowserUrlHelper</Link>
     </Content>
     <Content Include="AxClass\ARBAOTObjectPopulateController">
       <SubType>Content</SubType>
@@ -267,6 +294,16 @@
       <Name>ARBAOTBrowserMaintain</Name>
       <Link>Security Privileges\ARBAOTBrowserMaintain</Link>
     </Content>
+    <Content Include="AxSecurityPrivilege\ARBTableMetadataEntityView">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataEntityView</Name>
+      <Link>Security Privileges\ARBTableMetadataEntityView</Link>
+    </Content>
+    <Content Include="AxSecurityPrivilege\ARBTableMetadataEntityMaintain">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataEntityMaintain</Name>
+      <Link>Security Privileges\ARBTableMetadataEntityMaintain</Link>
+    </Content>
     <Content Include="AxSecurityRole\ARBAOTBrowserUser">
       <SubType>Content</SubType>
       <Name>ARBAOTBrowserUser</Name>
@@ -302,6 +339,182 @@
       <Name>ARBAOTBrowserTile</Name>
       <Link>Tiles\ARBAOTBrowserTile</Link>
     </Content>
+    <Content Include="AxEdt\ARBMetadataDescription">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataDescription</Name>
+      <Link>EDT Strings\ARBMetadataDescription</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataTableGroup">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataTableGroup</Name>
+      <Link>EDT Strings\ARBMetadataTableGroup</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataTableType">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataTableType</Name>
+      <Link>EDT Strings\ARBMetadataTableType</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataSqlTableName">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataSqlTableName</Name>
+      <Link>EDT Strings\ARBMetadataSqlTableName</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataFieldDataType">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataFieldDataType</Name>
+      <Link>EDT Strings\ARBMetadataFieldDataType</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataRelationshipType">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataRelationshipType</Name>
+      <Link>EDT Strings\ARBMetadataRelationshipType</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataCardinality">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataCardinality</Name>
+      <Link>EDT Strings\ARBMetadataCardinality</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataHelpText">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataHelpText</Name>
+      <Link>EDT Strings\ARBMetadataHelpText</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataIntegerValue">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataIntegerValue</Name>
+      <Link>EDT Integers\ARBMetadataIntegerValue</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataStringSize">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataStringSize</Name>
+      <Link>EDT Integers\ARBMetadataStringSize</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadata</Name>
+      <Link>Tables\ARBTableMetadata</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableFieldMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBTableFieldMetadata</Name>
+      <Link>Tables\ARBTableFieldMetadata</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableRelationMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBTableRelationMetadata</Name>
+      <Link>Tables\ARBTableRelationMetadata</Link>
+    </Content>
+    <Content Include="AxTable\ARBEnumMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBEnumMetadata</Name>
+      <Link>Tables\ARBEnumMetadata</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableMetadataEntityStaging">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataEntityStaging</Name>
+      <Link>Tables\ARBTableMetadataEntityStaging</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableFieldMetadataEntityStaging">
+      <SubType>Content</SubType>
+      <Name>ARBTableFieldMetadataEntityStaging</Name>
+      <Link>Tables\ARBTableFieldMetadataEntityStaging</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableRelationMetadataEntityStaging">
+      <SubType>Content</SubType>
+      <Name>ARBTableRelationMetadataEntityStaging</Name>
+      <Link>Tables\ARBTableRelationMetadataEntityStaging</Link>
+    </Content>
+    <Content Include="AxTable\ARBEnumMetadataEntityStaging">
+      <SubType>Content</SubType>
+      <Name>ARBEnumMetadataEntityStaging</Name>
+      <Link>Tables\ARBEnumMetadataEntityStaging</Link>
+    </Content>
+    <Content Include="AxClass\ARBTableMetadataPopulateService">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataPopulateService</Name>
+      <Link>Classes\ARBTableMetadataPopulateService</Link>
+    </Content>
+    <Content Include="AxClass\ARBTableMetadataPopulateController">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataPopulateController</Name>
+      <Link>Classes\ARBTableMetadataPopulateController</Link>
+    </Content>
+    <Content Include="AxDataEntityView\ARBTableMetadataEntity">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataEntity</Name>
+      <Link>Data Entities\ARBTableMetadataEntity</Link>
+    </Content>
+    <Content Include="AxDataEntityView\ARBTableFieldMetadataEntity">
+      <SubType>Content</SubType>
+      <Name>ARBTableFieldMetadataEntity</Name>
+      <Link>Data Entities\ARBTableFieldMetadataEntity</Link>
+    </Content>
+    <Content Include="AxDataEntityView\ARBTableRelationMetadataEntity">
+      <SubType>Content</SubType>
+      <Name>ARBTableRelationMetadataEntity</Name>
+      <Link>Data Entities\ARBTableRelationMetadataEntity</Link>
+    </Content>
+    <Content Include="AxDataEntityView\ARBEnumMetadataEntity">
+      <SubType>Content</SubType>
+      <Name>ARBEnumMetadataEntity</Name>
+      <Link>Data Entities\ARBEnumMetadataEntity</Link>
+    </Content>
+    <Content Include="AxForm\ARBTableMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadata</Name>
+      <Link>Forms\ARBTableMetadata</Link>
+    </Content>
+    <Content Include="AxForm\ARBEnumMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBEnumMetadata</Name>
+      <Link>Forms\ARBEnumMetadata</Link>
+    </Content>
+    <Content Include="AxMenuItemDisplay\ARBTableMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadata</Name>
+      <Link>Display Menu Items\ARBTableMetadata</Link>
+    </Content>
+    <Content Include="AxMenuItemDisplay\ARBEnumMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBEnumMetadata</Name>
+      <Link>Display Menu Items\ARBEnumMetadata</Link>
+    </Content>
+    <Content Include="AxMenuItemAction\ARBTableMetadataPopulate">
+      <SubType>Content</SubType>
+      <Name>ARBTableMetadataPopulate</Name>
+      <Link>Action Menu Items\ARBTableMetadataPopulate</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataKeyType">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataKeyType</Name>
+      <Link>EDT Strings\ARBMetadataKeyType</Link>
+    </Content>
+    <Content Include="AxEdt\ARBMetadataFieldPosition">
+      <SubType>Content</SubType>
+      <Name>ARBMetadataFieldPosition</Name>
+      <Link>EDT Integers\ARBMetadataFieldPosition</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableKeyFieldMetadata">
+      <SubType>Content</SubType>
+      <Name>ARBTableKeyFieldMetadata</Name>
+      <Link>Tables\ARBTableKeyFieldMetadata</Link>
+    </Content>
+    <Content Include="AxTable\ARBTableKeyFieldMetadataEntityStaging">
+      <SubType>Content</SubType>
+      <Name>ARBTableKeyFieldMetadataEntityStaging</Name>
+      <Link>Tables\ARBTableKeyFieldMetadataEntityStaging</Link>
+    </Content>
+    <Content Include="AxDataEntityView\ARBTableKeyFieldMetadataEntity">
+      <SubType>Content</SubType>
+      <Name>ARBTableKeyFieldMetadataEntity</Name>
+      <Link>Data Entities\ARBTableKeyFieldMetadataEntity</Link>
+    </Content>
+    <Content Include="AxClass\ARBClipboardHelperBuild" />
+    <Content Include="AxClass\ARBClipboardHelperControl" />
+    <Content Include="AxResource\ARBClipboardHelperHTM" />
+    <Content Include="AxResource\ARBClipboardHelperJS" />
+    <Content Include="AxClass\ARBClipboardHelper" />
+    <Content Include="AxForm\ARBClipboardHelper" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Arbela.Dynamics.AX.Xpp.Support\Arbela.Dynamics.AX.Xpp.Support.csproj">
@@ -309,12 +522,24 @@
       <Project>{2f618da7-59bc-4abe-8f24-72d2d59f9ad4}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <Content Include="AxClass\ARBClipboardHelperBuild" />
+    <Content Include="AxClass\ARBClipboardHelperControl" />
+    <Content Include="AxResource\ARBClipboardHelperHTM" />
+    <Content Include="AxResource\ARBClipboardHelperJS" />
+    <Content Include="AxClass\ARBClipboardHelper" />
+    <Content Include="AxForm\ARBClipboardHelper" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="PygmentSharp.Core, Version=0.3.0.0, Culture=neutral, PublicKeyToken=null">
+    <Reference Include="PygmentSharp.Core, Version=0.3.1.0, Culture=neutral, PublicKeyToken=null">
       <Name>PygmentSharp.Core</Name>
-      <HintPath>..\packages\PygmentSharp.Core.0.3.0\lib\netstandard2.0\PygmentSharp.Core.dll</HintPath>
+      <HintPath>..\packages\PygmentSharp.Core.0.3.1\lib\netstandard2.0\PygmentSharp.Core.dll</HintPath>
     </Reference>
+    <Content Include="AxClass\ARBClipboardHelperBuild" />
+    <Content Include="AxClass\ARBClipboardHelperControl" />
+    <Content Include="AxResource\ARBClipboardHelperHTM" />
+    <Content Include="AxResource\ARBClipboardHelperJS" />
+    <Content Include="AxClass\ARBClipboardHelper" />
+    <Content Include="AxForm\ARBClipboardHelper" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.Common.targets" />
   <Import Project="$(BuildTasksDirectory)\Microsoft.Dynamics.Framework.Tools.BuildTasks.17.0.targets" />
